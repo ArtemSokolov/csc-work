@@ -71,43 +71,37 @@ popSummary <- function(.df, panel) {
 }
 
 ## Determine unique subpopulations in the marker panels of interest
-topPop <- function(panel, nPop) {
-    Y <- popSummary(M, panel)
+topPop <- function(M, panel, nPop) {
+    Y <- popSummary(M, panel) %>% slice( 1:nPop ) %>%
+        mutate( Population = factor(Population, Population) )
     
     ## Count the total number and reduce to the top populations
-    nTotal <- Y %>% summarize( nTotal = sum(n) ) %>%
+    nTotal <- Y %>% summarize( nTotal = sum(nCells) ) %>%
         mutate( Label = str_c("Total # Cells: ", scales::comma(nTotal)) )
-    Y <- Y %>% slice( 1:nPop )
 
-    Y1 <- Y %>% select(Population, `# Cells` = n)
+    Y1 <- Y %>% select(Population, `# Cells` = nCells)
     gg1 <- ggplot( Y1, aes(x=Population, y=`# Cells`) ) + theme_minimal() +
         geom_bar( stat='identity', color="darkgray", fill="lightgray" ) +
-        scale_x_continuous(limits=c(0,(nPop+1)), expand=c(0,0)) +
+##        scale_x_continuous(limits=c(0,(nPop+1)), expand=c(0,0)) +
         scale_y_log10(labels=scales::comma, breaks=c(10,100,1000,10000,100000)) + 
-        theme(axis.text.x = element_blank(),
+        theme(axis.text.x = element_text(angle=90, vjust=0.5),
               axis.title.x = element_blank(),
               panel.grid.major.x = element_blank(),
               panel.grid.minor = element_blank() ) +
         geom_text( data=nTotal, aes(label=Label), x=Inf, y=Inf, hjust=1, vjust=1 )
 
-    Y2 <- Y %>% select( -n ) %>%
+    Y2 <- Y %>% select( -nCells, -PopIndex, -CellIDs ) %>%
         pivot_longer( -c(Population), names_to="Marker" )
     gg2 <- ggplot( Y2, aes(x=Population, y=Marker, color=value) ) +
         theme_minimal() + geom_point() +
         scale_color_manual(values=c(pos="black", neg="lightgray"), guide=FALSE ) +
-        scale_x_continuous(limits=c(0,(nPop+1)), expand=c(0,0)) +
+##        scale_x_continuous(limits=c(0,(nPop+1)), expand=c(0,0)) +
         theme(axis.text.x = element_blank(),
               panel.grid.major = element_blank(),
               panel.grid.minor = element_blank() )
 
     egg::ggarrange( gg1, gg2, ncol=1 )
 }
-
-##gg1 <- topPop( panel1, 20 )
-##ggsave( "immune.png", gg1, width=8, height=5 )
-
-##gg2 <- topPop( panel2, 20 )
-##ggsave( "all.png", gg2, width=8, height=5 )
 
 ## Y <- popSummary(M, panel2) %>% filter( nCells > 100 )
 ## ggplot( Y, aes(x=PopIndex, y=nCells) ) +
@@ -120,3 +114,5 @@ popSummary(M, panel2) %>% slice( 1:30 ) %>%
     select( CellID=CellIDs, Label=Population, everything() ) %>%
     write_csv( "output/gating.csv" )
 
+gg <- topPop(M, panel2, 30)
+ggsave( "output/gating_summary.png", gg, width=8, height=5 )
