@@ -5,8 +5,8 @@ X <- read_csv("data/WD-76845-097-ij_subtracted_50_qc.csv",
               col_types=cols( CellID=col_integer() ))
 
 ## Columns to fit
-vcol <- list(anti_CD3    = "anti_CD3_cytoRingMask",
-             anti_CD45RO = "anti_CD45RO_cytoRingMask",
+vcol <- list(CD3         = "anti_CD3_cytoRingMask",
+             CD45RO      = "anti_CD45RO_cytoRingMask",
              aSMA        = "aSMA_660_cellRingMask",
              Keratin     = "Keratin_570_cellRingMask",
              CD4         = "CD4_488_cytoRingMask",
@@ -28,16 +28,18 @@ vcol <- list(anti_CD3    = "anti_CD3_cytoRingMask",
              CollagenIV  = "CollagenIV_647_cellRingMask")
 
 ## Marker panels of interest
-panel1 <- c("anti_CD3", "anti_CD45RO", "CD4", "CD45", "PD1", "CD20", "CD68", "CD8a", "CD163", "FOXP3")
-panel2 <- c(panel1, "CD31", "aSMA", "Vimentin", "Keratin", "PDL1")
+panel1 <- c("CD3", "CD45RO", "CD4", "CD45", "PD1", "CD20", "CD68", "CD8a", "CD163", "FOXP3")
+panel2 <- c(panel1, "CD31", "aSMA", "Vimentin", "Keratin", "PDL1", "PCNA")
 
 if( !file.exists("models/GMMs.RData") ) {
     ## Fit to the markers of interest only
     GMMs <- naivestates::GMMfit(X, CellID, !!!vcol)
+    dir.create("models", showWarnings=FALSE)
     save( GMMs, file="models/GMMs.RData" )
 
     ## Plot the general overview of the fit quality
     ggf <- naivestates::plotFitOverview( GMMs )
+    dir.create("plots/markers", showWarnings=FALSE, recursive=TRUE)
     ggsave( "plots/overview.png", ggf, width=8, height=8 )
     walk(names(vcol), ~ggsave(
                          str_c("plots/markers/", .x, ".png"),
@@ -58,14 +60,20 @@ M <- P %>% mutate( across(-CellID, ~case_when(
                                      .x <= 0.2 ~ "neg",
                                      TRUE ~ "amb")) )
 
-## Determine unique subpopulations in the marker panels of interest
-topPop <- function( panel, nPop ) {
-    Y <- M %>% select( all_of(panel) ) %>%
+## Summarizes cell populations based on combinations of positive and negative markers
+popSummary <- function(.df, panel) {
+    .df %>% select( CellID, all_of(panel) ) %>%
         filter( if_all(.fns= ~.x != "amb") ) %>%
-        group_by( !!!syms(panel) ) %>% tally() %>%
-        ungroup() %>% arrange( desc(n) ) %>%
-        mutate( Population = 1:n() )
+        group_by( !!!syms(panel) ) %>%
+        summarize( nCells=n(), CellIDs=list(CellID), .groups="drop" ) %>%
+        arrange( desc(nCells) ) %>%
+        mutate( PopIndex = 1:n(), Population = str_c("Pop", PopIndex) )
+}
 
+## Determine unique subpopulations in the marker panels of interest
+topPop <- function(panel, nPop) {
+    Y <- popSummary(M, panel)
+    
     ## Count the total number and reduce to the top populations
     nTotal <- Y %>% summarize( nTotal = sum(n) ) %>%
         mutate( Label = str_c("Total # Cells: ", scales::comma(nTotal)) )
@@ -95,9 +103,20 @@ topPop <- function( panel, nPop ) {
     egg::ggarrange( gg1, gg2, ncol=1 )
 }
 
-gg1 <- topPop( panel1, 20 )
-ggsave( "immune.png", gg1, width=8, height=5 )
+##gg1 <- topPop( panel1, 20 )
+##ggsave( "immune.png", gg1, width=8, height=5 )
 
-gg2 <- topPop( panel2, 20 )
-ggsave( "all.png", gg2, width=8, height=5 )
+##gg2 <- topPop( panel2, 20 )
+##ggsave( "all.png", gg2, width=8, height=5 )
+
+## Y <- popSummary(M, panel2) %>% filter( nCells > 100 )
+## ggplot( Y, aes(x=PopIndex, y=nCells) ) +
+##     geom_point() + theme_bw() +
+##     scale_y_log10( labels=scales::comma ) +
+##     ggsave("test.png", width=8, height=6)
+
+popSummary(M, panel2) %>% slice( 1:30 ) %>%
+    select(-nCells, -PopIndex) %>% unnest(CellIDs) %>%
+    select( CellID=CellIDs, Label=Population, everything() ) %>%
+    write_csv( "output/gating.csv" )
 

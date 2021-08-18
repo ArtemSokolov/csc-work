@@ -1,6 +1,7 @@
 data/*
 models/*
 plots/*
+output/*
 
 # History files
 .Rhistory
