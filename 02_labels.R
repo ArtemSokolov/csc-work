@@ -72,3 +72,34 @@ fplot( ZC, foptlo(ZC, "HDBSCAN", "Label"),
 ZP <- fnorm(XY, Label)
 fplot( ZP, 0:16, foptlo(ZP, "Label", "HDBSCAN"),
       "plots/hdbscan/pops.png" )
+
+## Treemap of population containment within clusters
+library( treemapify )
+##pal <- c( ggthemes::few_pal("Light")(8)[-5], ggthemes::few_pal("Medium")(8)[-5] ) %>%
+##    col2rgb %>% rgb2hsv %>% {.["h",]*360} %>% hcl( 35, 85 )
+##pal <- RColorBrewer::brewer.pal(7, "Pastel1") %>% colorRampPalette
+pal <- ggthemes::few_pal("Light")(8)[-5] %>% colorRampPalette
+
+TM <- XY %>% filter( HDBSCAN != -1, Label != "Other" ) %>%
+    group_by(HDBSCAN) %>% mutate(Total=sum(Count)) %>% ungroup() %>%
+    filter( Total != 0 )
+    
+TMS <- TM %>%
+    mutate(Scale = Total / sum(unique(Total)), Count = Count / Scale)
+
+ftreemap <- function(.df, fnOut) {
+    .df <- .df %>% mutate(HDBSCAN = str_c("Cluster", HDBSCAN))
+    
+    ggplot( .df, aes(area=Count, label=Label, subgroup=HDBSCAN, fill=HDBSCAN) ) +
+        geom_treemap(color="black") +
+        geom_treemap_subgroup_border( color="white", size=5 ) +
+        geom_treemap_text( color="black", place="centre", grow=TRUE ) +
+        geom_treemap_subgroup_text(place = "bottom", grow = TRUE,
+                                   alpha = 0.33, colour = "white",
+                                   fontface = "italic") +
+        scale_fill_manual( values=pal(14), guide=FALSE ) +
+        ggsave(fnOut, width=12, height=8)
+}
+
+ftreemap( TM, "plots/hdbscan/treemap.png" )
+ftreemap( TMS, "plots/hdbscan/scaletmap.png" )
