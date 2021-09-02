@@ -2,6 +2,7 @@ data/*
 models/*
 plots/*
 output/*
+archive/*
 
 # History files
 .Rhistory

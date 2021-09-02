@@ -27,10 +27,12 @@ vcol <- list(CD3         = "anti_CD3_cytoRingMask",
              PCNA        = "PCNA_488_nucleiRingMask",
              CollagenIV  = "CollagenIV_647_cellRingMask")
 
-## Marker panels of interest
-panel1 <- c("CD3", "CD45RO", "CD4", "CD45", "PD1", "CD20", "CD68", "CD8a", "CD163", "FOXP3")
-panel2 <- c(panel1, "CD31", "aSMA", "Vimentin", "Keratin", "PDL1", "PCNA")
-
+## Marker panel of interest:
+## CD3, CD45RO, aSMA, CD163, CD20, CD4, CD45, CD68, CD8a,
+## Desmin, Ecad, FOXP3, Keratin, PCNA, PD1, PDL1, Vimentin.
+mypanel <- c("CD3", "CD45RO", "aSMA", "CD163", "CD20", "CD4", "CD45", "CD68", "CD8a",
+             "Desmin", "Ecad", "FOXP3", "Keratin", "PCNA", "PD1", "PDL1", "Vimentin" )
+             
 if( !file.exists("models/GMMs.RData") ) {
     ## Fit to the markers of interest only
     GMMs <- naivestates::GMMfit(X, CellID, !!!vcol)
@@ -82,7 +84,6 @@ topPop <- function(M, panel, nPop) {
     Y1 <- Y %>% select(Population, `# Cells` = nCells)
     gg1 <- ggplot( Y1, aes(x=Population, y=`# Cells`) ) + theme_minimal() +
         geom_bar( stat='identity', color="darkgray", fill="lightgray" ) +
-##        scale_x_continuous(limits=c(0,(nPop+1)), expand=c(0,0)) +
         scale_y_log10(labels=scales::comma, breaks=c(10,100,1000,10000,100000)) + 
         theme(axis.text.x = element_text(angle=90, vjust=0.5),
               axis.title.x = element_blank(),
@@ -95,7 +96,6 @@ topPop <- function(M, panel, nPop) {
     gg2 <- ggplot( Y2, aes(x=Population, y=Marker, color=value) ) +
         theme_minimal() + geom_point() +
         scale_color_manual(values=c(pos="black", neg="lightgray"), guide=FALSE ) +
-##        scale_x_continuous(limits=c(0,(nPop+1)), expand=c(0,0)) +
         theme(axis.text.x = element_blank(),
               panel.grid.major = element_blank(),
               panel.grid.minor = element_blank() )
@@ -103,16 +103,17 @@ topPop <- function(M, panel, nPop) {
     egg::ggarrange( gg1, gg2, ncol=1 )
 }
 
-## Y <- popSummary(M, panel2) %>% filter( nCells > 100 )
-## ggplot( Y, aes(x=PopIndex, y=nCells) ) +
-##     geom_point() + theme_bw() +
-##     scale_y_log10( labels=scales::comma ) +
-##     ggsave("test.png", width=8, height=6)
+Y <- popSummary(M, mypanel) %>% filter( nCells > 100 ) %>%
+    select(Population, nCells, everything())
+(ggplot( Y, aes(x=PopIndex, y=nCells) ) +
+    geom_point() + theme_bw() +
+    scale_y_log10( labels=scales::comma )) %>%
+    plotly::ggplotly() %>% htmlwidgets::saveWidget("popsize.html")
 
-popSummary(M, panel2) %>% slice( 1:30 ) %>%
+popSummary(M, mypanel) %>% filter( nCells > 100 ) %>%
     select(-nCells, -PopIndex) %>% unnest(CellIDs) %>%
     select( CellID=CellIDs, Label=Population, everything() ) %>%
     write_csv( "output/gating.csv" )
 
-gg <- topPop(M, panel2, 30)
+gg <- topPop(M, mypanel, 40)
 ggsave( "output/gating_summary.png", gg, width=8, height=5 )
