@@ -10,18 +10,17 @@ Y <- read_csv( "output/gating.csv", col_types=cols() ) %>%
     select( CellID, Label ) %>%
     filter( Label %in% str_c("Pop",1:nPop) )
 
-## Given a set of labeled cells, counts the number of clusters that don't have any labels
+## Given a set of labeled cells, counts unique labels in each cluster
 ## dfClus - data frame mappping CellID to cluster index
 ## dfLbl  - data frame mapping CellID to population labels
 ## cl     - column in .dfClus that contains cluster indices
-countUnlab <- function( dfClus, dfLbl, cl ) {
+countLabels <- function( dfClus, dfLbl, cl ) {
     left_join( dfClus, dfLbl, by="CellID" ) %>%
         count( {{cl}}, Label, name="Count" ) %>%
-        count( {{cl}}, name="nLabels" ) %>%
-        filter( nLabels == 1 ) %>% nrow()
+        count( {{cl}}, name="nLabels" )
 }
 
-## countUnlab( X, Y, HDBSCAN )
+countLabels( X, Y, HDBSCAN )
 
 ## Compute intersections of all clusters by labels
 XY <- left_join(X, Y, by="CellID") %>%
