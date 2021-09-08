@@ -1,21 +1,30 @@
 library( tidyverse )
-library( seriation )
-
-nPop <- 40
-clExcl <- c(-1,3,14)
 
 ## Load cluster assignments and gating results
 X <- read_csv( "data/hdbscan.csv", col_types=cols() ) %>%
     rename( HDBSCAN = hdbscan ) %>%
-    filter( !(HDBSCAN %in% clExcl) )
-Y <- read_csv( "output/gating.csv", col_types=cols() ) %>%
-    filter( Label %in% str_c("Pop",1:nPop) )
+    filter( HDBSCAN != -1 )
+Y <- read_csv( "output/gating.csv", col_types=cols() )
 XY <- inner_join(X, Y, by="CellID")
 
 ## Isolate intersections that pass the cell count filter
 Z <- XY %>% group_by(HDBSCAN, Label) %>%
     summarize( Count = n(), across(CD3:Vimentin, unique), .groups='drop' ) %>%
-    filter( Count >= 15 ) %>% arrange( HDBSCAN, desc(Count) )
+    group_by(HDBSCAN) %>% mutate( Pct = Count / sum(Count) ) %>% ungroup() %>%
+    filter( Count >= 10, Pct >= 0.05 )
+
+finspect <- function() {
+    Z %>% group_by(HDBSCAN) %>% summarize( MX = max(Count), MN = min(Count) )
+    
+    Z1 <- Z %>% arrange(desc(Count)) %>%
+        mutate( Intersection = str_c(HDBSCAN, "_", Label) ) %>%
+        mutate( Intersection = factor(Intersection, Intersection) )
+    (ggplot( Z1, aes(x=Intersection, y=Count) ) +
+     theme_bw() + geom_point() +
+     scale_y_log10(labels=scales::comma) +
+     theme(axis.text.x = element_text(angle=90, vjust=0.5))) %>%
+        plotly::ggplotly() %>% htmlwidgets::saveWidget("intersect.html")
+}
 
 ## Common theme elements
 mytheme <- function()
@@ -25,6 +34,7 @@ mytheme <- function()
 
 fplot <- function(.df, clusRange) {
     ZZ <- .df %>% filter(HDBSCAN %in% clusRange) %>%
+        arrange( HDBSCAN, desc(Count) ) %>%
         mutate( Slice = str_c(HDBSCAN, '_', Label) ) %>%
         mutate( Slice = factor(Slice,Slice) )
 
@@ -36,7 +46,7 @@ fplot <- function(.df, clusRange) {
         theme(panel.grid.major.x = element_blank(),
               plot.margin=unit(c(0,0.5,0,0.5),unit="cm"))
 
-    ZZ2 <- ZZ %>% select(-Label, -Count) %>%
+    ZZ2 <- ZZ %>% select(-Label, -Count, -Pct) %>%
         pivot_longer( -c(HDBSCAN, Slice), names_to="Marker" )
     gg2 <- ggplot( ZZ2, aes(x=Slice, y=Marker, color=value) ) +
         theme_minimal() + geom_point() +
@@ -50,7 +60,6 @@ fplot <- function(.df, clusRange) {
     egg::ggarrange( gg1, gg2, ncol=1, heights=c(1,2) )
 }
 
-gg1 <- fplot( Z, 0:11 )
-gg2 <- fplot( Z, 12:18 )
-ggsave( "plots/intersect1.png", gg1, width=8, height=3 )
-ggsave( "plots/intersect2.png", gg2, width=8, height=3 )
+ggsave( "plots/intersect1.png", fplot( Z, 0:9 ), width=8, height=3 )
+ggsave( "plots/intersect2.png", fplot( Z, 10:18 ), width=8, height=3 )
+
