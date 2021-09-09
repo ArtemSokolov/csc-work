@@ -36,6 +36,9 @@ ggplot( A, aes(x=Threshold, y=FracAmb) ) +
           strip.background = element_blank()) +
     ggsave( "threshold.png", width=8, height=5 )
 
+G80 <- P %>% gate(0.8)
+G80 %>% select(-CellID) %>% filter( if_all(.fns= ~.x == "amb") )
+
 checkDesmin <- function() {
     X <- read_csv("data/WD-76845-097-ij_subtracted_50_qc.csv",
               col_types=cols( CellID=col_integer() ))
