@@ -51,7 +51,9 @@ checkDesmin <- function() {
                    .id = "Source" )
     
     ggplot( Z, aes(x=Desmin_555_cellRingMask, color=Source) ) +
-        geom_density() + theme_bw() +
-        scale_color_manual( values=c("All" = 'black', 'Clus4' = 'tomato') ) +
+        geom_density(adjust=0.1) + theme_bw() +
+        scale_color_manual( values=c(All = 'black', Clus4 = 'tomato'),
+                           labels=c(All = 'All (962,343 cells)',
+                                    Clus4 = 'Cluster4 (2,300 cells)') ) +
         ggsave("Desmin.png", width=8, height=5 )
 }
