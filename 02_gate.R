@@ -35,4 +35,5 @@ ggplot( A, aes(x=Threshold, y=FracAmb) ) +
 
 G80 <- P %>% gate(0.8)
 G80 %>% select(-CellID) %>% filter( if_all(.fns= ~.x == "amb") )
- 
+
+G80 %>% write_csv( "output/gating-80.csv" )
