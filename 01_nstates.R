@@ -4,7 +4,7 @@ library(tidyverse)
 if( !file.exists("models/GMMs.RData") ) {
 
     ## Load QCd expression
-    X <- read_csv("data/WD-76845-097-ij_subtracted_50_qc.csv",
+    X <- read_csv("data/consensus_clustering.csv.gz",
                   col_types=cols( CellID=col_integer() ))
 
     ## Columns to fit
