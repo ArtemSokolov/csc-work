@@ -12,3 +12,6 @@ WORKDIR $HOME
 USER gitpod
 
 RUN echo 'export PS1="\e[01;34m\w\e[0m$ "' >> $HOME/.bashrc
+
+RUN echo "session-default-working-dir=/workspace/csc-work" | sudo tee -a /etc/rstudio/rsession.conf && \
+    echo "session-default-new-project-dir=/workspace/csc-work" | sudo tee -a /etc/rstudio/rsession.conf
